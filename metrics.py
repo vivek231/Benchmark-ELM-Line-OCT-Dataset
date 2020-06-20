@@ -81,7 +81,7 @@ def main():
         S = sitk.GetArrayFromImage(sitk.ReadImage(p))
         mean_accuracy.append(Accuracy(G, S))
         mean_dice.append(Dice(G, S))
-        mean_iou.append(get_IoU(G, S))
+        mean_iou.append(IoU(G, S))
         mean_sensitivity.append(Sensitivity(G, S))
         mean_specificity.append(Specificity(G, S))
 
