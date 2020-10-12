@@ -1,295 +1,80 @@
-import numpy as np
-import torch
-import skimage
-from skimage import transform
-import matplotlib.pyplot as plt
-import os
 from os.path import splitext
 from os import listdir
+import numpy as np
 from glob import glob
+import torch
+from torchvision import transforms
+import torchvision.transforms.functional as tf
+from torch.utils.data import Dataset
 import logging
 from PIL import Image
 import cv2
-from skimage.color import rgb2gray, gray2rgb
 
-class Dataset(torch.utils.data.Dataset):
-    """
-    dataset of image files of the form 
-       stuff<number>_trans.pt
-       stuff<number>_density.pt
-    """
 
-    def __init__(self, data_dir, data_type='float32', transform=None):
-        self.data_dir = data_dir
-        self.transform = transform
-        self.data_type = data_type
+class BasicDataset(Dataset):
+    def __init__(self, imgs_dir, masks_dir, scale=1,transform = None):
+        self.imgs_dir = imgs_dir
+        self.masks_dir = masks_dir
+        self.scale = scale
+        assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
-        lst_data = os.listdir(data_dir)
-        lst_input = [f for f in lst_data if f.find('_input_') != -1]
-        lst_label = [f for f in lst_data if f.find('_label_') != -1 ]
-
-        lst_input.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
-        lst_label.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
-
-        self.lst_input = lst_input
-        self.lst_label = lst_label
-
-    def __getitem__(self, index):
-        label = np.load(os.path.join(self.data_dir, self.lst_label[index]))
-        label = cv2.resize(label,(384,256))
-        if len(label.shape) == 2:
-          label = np.expand_dims(label, axis=2)
-        label = label.transpose((2,0,1))
-        label = label / 255.0
-
-        input = np.load(os.path.join(self.data_dir, self.lst_input[index]))
-        input = cv2.resize(input,(384,256))
-        input = gray2rgb(input)
-        if len(input.shape) == 2:
-          input = np.expand_dims(input, axis=2)
-        input = input.transpose((2,0,1))
-        input = input / 255.0
-
-        data = {'input': input, 'label': label}
-
-        if self.transform:
-            data = self.transform(data)
-
-        return data
+        self.im_ids = [splitext(file)[0] for file in listdir(imgs_dir)
+                    if not file.startswith('.')]
+        self.mask_ids = [splitext(file)[0] for file in listdir(masks_dir)
+                    if not file.startswith('.')]
+        logging.info(f'Creating dataset with {len(self.im_ids)} examples')
+        self.transform=transform
 
     def __len__(self):
-        return len(self.lst_label)
-
-
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-
-    def __call__(self, data):
-        # Swap color axis because numpy image: H x W x C
-        #                         torch image: C x H x W
-
-        # for key, value in data:
-        #     data[key] = torch.from_numpy(value.transpose((2, 0, 1)))
-        #
-        # return data
-
-        input, label = data['input'], data['label']
-
-        input = input.astype(np.float32)
-        label = label.astype(np.float32)
-        return {'input': torch.from_numpy(input), 'label': torch.from_numpy(label)}
-
-
-class Normalize(object):
-    def __init__(self, mean=0.5, std=0.5):
-        self.mean = mean
-        self.std = std
-
-    def __call__(self, data):
-        input, label = data['input'], data['label']
-
-        input = (input - self.mean) / self.std
-
-        data = {'input': input, 'label': label}
-        return data
-
-
-class RandomFlip(object):
-    def __call__(self, data):
-        # Random Left or Right Flip
-
-        # for key, value in data:
-        #     data[key] = 2 * (value / 255) - 1
-        #
-        # return data
-        input, label = data['input'], data['label']
-
-        if np.random.rand() > 0.5:
-            input = np.fliplr(input)
-            label = np.fliplr(label)
-
-        if np.random.rand() > 0.5:
-            input = np.flipud(input)
-            label = np.flipud(label)
-
-        return {'input': input, 'label': label}
-
-
-class Rescale(object):
-  """Rescale the image in a sample to a given size
-
-  Args:
-    output_size (tuple or int): Desired output size.
-                                If tuple, output is matched to output_size.
-                                If int, smaller of image edges is matched
-                                to output_size keeping aspect ratio the same.
-  """
-
-  def __init__(self, output_size):
-    assert isinstance(output_size, (int, tuple))
-    self.output_size = output_size
-
-  def __call__(self, data):
-    input, label = data['input'], data['label']
-
-    h, w = input.shape[:2]
-
-    if isinstance(self.output_size, int):
-      if h > w:
-        new_h, new_w = self.output_size * h / w, self.output_size
-      else:
-        new_h, new_w = self.output_size, self.output_size * w / h
-    else:
-      new_h, new_w = self.output_size
-
-    new_h, new_w = int(new_h), int(new_w)
-
-    input = transform.resize(input, (new_h, new_w))
-    label = transform.resize(label, (new_h, new_w))
-
-    return {'input': input, 'label': label}
-
-
-class RandomCrop(object):
-  """Crop randomly the image in a sample
-
-  Args:
-    output_size (tuple or int): Desired output size.
-                                If int, square crop is made.
-  """
-
-  def __init__(self, output_size):
-    assert isinstance(output_size, (int, tuple))
-    if isinstance(output_size, int):
-      self.output_size = (output_size, output_size)
-    else:
-      assert len(output_size) == 2
-      self.output_size = output_size
-
-  def __call__(self, data):
-    input, label = data['input'], data['label']
-
-    h, w = input.shape[:2]
-    new_h, new_w = self.output_size
-
-    top = np.random.randint(0, h - new_h) if (h - new_h) > 0 else 0
-    left = np.random.randint(0, w - new_w) if (w - new_w) > 0 else 0
-
-    id_y = np.arange(top, top + new_h, 1)[:, np.newaxis].astype(np.int32)
-    id_x = np.arange(left, left + new_w, 1).astype(np.int32)
-
-    # input = input[top: top + new_h, left: left + new_w]
-    # label = label[top: top + new_h, left: left + new_w]
-
-    input = input[id_y, id_x]
-    label = label[id_y, id_x]
-
-    return {'input': input, 'label': label}
-
-
-class UnifromSample(object):
-  """Crop randomly the image in a sample
-
-  Args:
-    output_size (tuple or int): Desired output size.
-                                If int, square crop is made.
-  """
-
-  def __init__(self, stride):
-    assert isinstance(stride, (int, tuple))
-    if isinstance(stride, int):
-      self.stride = (stride, stride)
-    else:
-      assert len(stride) == 2
-      self.stride = stride
-
-  def __call__(self, data):
-    input, label = data['input'], data['label']
-
-    h, w = input.shape[:2]
-    stride_h, stride_w = self.stride
-    new_h = h//stride_h
-    new_w = w//stride_w
-
-    top = np.random.randint(0, stride_h + (h - new_h * stride_h))
-    left = np.random.randint(0, stride_w + (w - new_w * stride_w))
-
-    id_h = np.arange(top, h, stride_h)[:, np.newaxis]
-    id_w = np.arange(left, w, stride_w)
-
-    input = input[id_h, id_w]
-    label = label[id_h, id_w]
-
-    return {'input': input, 'label': label}
-
-
-class ZeroPad(object):
-  """Rescale the image in a sample to a given size
-
-  Args:
-    output_size (tuple or int): Desired output size.
-                                If tuple, output is matched to output_size.
-                                If int, smaller of image edges is matched
-                                to output_size keeping aspect ratio the same.
-  """
-
-  def __init__(self, output_size):
-    assert isinstance(output_size, (int, tuple))
-    self.output_size = output_size
-
-  def __call__(self, data):
-    input, label, target = data['input'], data['label'], data['target']
-
-    h, w = input.shape[:2]
-
-    if isinstance(self.output_size, int):
-      if h > w:
-        new_h, new_w = self.output_size * h / w, self.output_size
-      else:
-        new_h, new_w = self.output_size, self.output_size * w / h
-    else:
-      new_h, new_w = self.output_size
-
-    new_h, new_w = int(new_h), int(new_w)
-
-    l = (new_w - w)//2
-    r = (new_w - w) - l
-
-    u = (new_h - h)//2
-    b = (new_h - h) - u
-
-    input = np.pad(input, pad_width=((u, b), (l, r), (0, 0)))
-    label = np.pad(label, pad_width=((u, b), (l, r), (0, 0)))
-    target = np.pad(target, pad_width=((u, b), (l, r), (0, 0)))
-
-    return {'input': input, 'label': label, 'target': target}
-
-
-class ToNumpy(object):
-    """Convert ndarrays in sample to Tensors."""
-
-    def __call__(self, data):
-        # Swap color axis because numpy image: H x W x C
-        #                         torch image: C x H x W
-
-        # for key, value in data:
-        #     data[key] = value.transpose((2, 0, 1)).numpy()
-        #
-        # return data
-
-        return data.to('cpu').detach().numpy().transpose(0, 2, 3, 1)
-
-        # input, label = data['input'], data['label']
-        # input = input.transpose((2, 0, 1))
-        # label = label.transpose((2, 0, 1))
-        # return {'input': input.detach().numpy(), 'label': label.detach().numpy()}
-
-
-class Denormalize(object):
-    def __init__(self, mean=0.5, std=0.5):
-        self.mean = mean
-        self.std = std
-
-    def __call__(self, data):
-        data = self.std * data + self.mean
-        return data
+        return len(self.im_ids)
+
+    @classmethod
+    def preprocess(cls, pil_img, scale):
+        w, h = pil_img.size
+        newW, newH = int(scale * w), int(scale * h)
+        assert newW > 0 and newH > 0, 'Scale is too small'
+        pil_img = pil_img.resize((newW, newH))
+
+        img_nd = np.array(pil_img)
+
+        if len(img_nd.shape) == 2:
+            img_nd = np.expand_dims(img_nd, axis=2)
+
+        # HWC to CHW
+        img_trans = img_nd.transpose((2, 0, 1))
+        if img_trans.max() > 1:
+            img_trans = img_trans / 255
+
+        return img_trans
+    
+
+    def __getitem__(self, i):
+        im_idx = self.im_ids[i]
+      
+        mask_idx = self.mask_ids[i]
+  
+        mask_file = glob(self.masks_dir + mask_idx + '.*')
+        img_file = glob(self.imgs_dir + im_idx + '.*')
+
+        assert len(mask_file) == 1, \
+            f'Either no mask or multiple masks found for the ID {mask_idx}: {mask_file}'
+        assert len(img_file) == 1, \
+            f'Either no image or multiple images found for the ID {im_idx}: {img_file}'
+        mask = Image.open(mask_file[0])
+        img = Image.open(img_file[0])
+
+        assert img.size == mask.size, \
+            f'Image and mask {im_idx} should be the same size, but are {img.size} and {mask.size}'
+        
+        mask = mask.convert('1')
+        img = img.convert(mode='RGB')
+
+        if self.transform:
+            img,mask=self.transform(img,mask)
+      
+        return {'image': img,'mask': mask}
+    
+
+
+
+    
