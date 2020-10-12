@@ -21,7 +21,7 @@ from tqdm import tqdm
 from torchvision import transforms
 from eval import eval_net
 from model import U_Net,AttU_Net,LinkNetImprove,U2NETP,R2U_Net,DeepLabv3_plus,FCN,SegNet
-from all_transformers import get_all_transformers
+from transformation import ELM_transform
 from tensorboardX import SummaryWriter
 from dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
@@ -59,7 +59,7 @@ def train_net(net,
               save_cp=True,
               img_scale=1):
     
-    transform = get_all_transformers()
+    transform = ELM_transform()
     train_dataset = BasicDataset(train_dir_img, train_dir_mask, img_scale,transform = transform['train'])
     
     val_dataset= BasicDataset(val_dir_img, val_dir_mask, img_scale,transform['val'])
