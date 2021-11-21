@@ -32,7 +32,7 @@ model.load_state_dict(torch.load('/home/vivek/Documents/ELMseg/checkpoint/fold5.
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in [".png", ".jpg", ".jpeg"])
 
-image_dir = '/home/vivek/Documents/ELMseg/cross-validation/fold5/test/image/'
+image_dir = './test/image/'
 image_filenames = [x for x in os.listdir(image_dir) if is_image_file(x)]
 
 for image_name in image_filenames:
