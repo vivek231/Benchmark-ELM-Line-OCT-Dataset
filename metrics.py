@@ -11,8 +11,6 @@ from PIL import Image
 from sklearn import metrics
 from scores import *
 import numpy as np
-#from sewar.full_ref import rmse, mse
-
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -35,20 +33,6 @@ def Dice(y_true, y_pred):
     dice = TP/float(TP + FP + FN)
 
     return dice
-
-
-
-# def Dice(y_true, y_pred):
-#     """Returns Dice Similarity Coefficient for ground truth and predicted masks."""
-#     #print(y_true.dtype)
-#     #print(y_pred.dtype)
-#     y_true = np.squeeze(y_true)/255
-#     y_pred = np.squeeze(y_pred)/255
-#     y_true.astype('bool')
-#     y_pred.astype('bool')
-#     intersection = np.logical_and(y_true, y_pred).sum()
-#     return ((2. * intersection.sum()) + 1.) / (y_true.sum() + y_pred.sum() + 1.)
-
 
 def IoU(Gi,Si):
     #print(Gi.shape, Si.shape)
@@ -109,9 +93,9 @@ def mse(imageA, imageB):
 
 def main():
     parser = argparse.ArgumentParser(description='ELM line segmentation accuracy computation')
-    parser.add_argument('--label_dir', type=str, default='/home/vivek/Documents/ELMseg/accuracy/fold5/gt/',
+    parser.add_argument('--label_dir', type=str, default='./gt/',
                         help='folder of test label')
-    parser.add_argument('--pred_dir', type=str, default='/home/vivek/Documents/ELMseg/Final_Results/256*256_without_data_augment/segnet/fold5/',
+    parser.add_argument('--pred_dir', type=str, default='./predict/',
                         help='folder of pred masks')
     args = parser.parse_args()
 
