@@ -3,8 +3,8 @@ This code is written by:
 
 Dr. Vivek Kumar Singh
 Department of Computer Science
-Durham University, United Kingdom
-Date: 24/August/2020
+Newcastle University, United Kingdom
+Date: 24/August/2021
 
 '''
 import argparse
@@ -32,11 +32,11 @@ import matplotlib.pyplot as plt
 import csv
 
 #------------- Load the images from directory----------
-train_dir_img = '/home/vivek/Documents/ELMseg/cross-validation/fold5/train/image/'
-train_dir_mask = '/home/vivek/Documents/ELMseg/cross-validation/fold5/train/mask/'
-val_dir_img = '/home/vivek/Documents/ELMseg/cross-validation/fold5/test/image/'
-val_dir_mask = '/home/vivek/Documents/ELMseg/cross-validation/fold5/test/mask/'
-dir_checkpoint = '/home/vivek/Documents/ELMseg/checkpoint/'
+train_dir_img = './train/image/'
+train_dir_mask = './train/mask/'
+val_dir_img = './val/image/'
+val_dir_mask = './val/mask/'
+dir_checkpoint = './checkpoint/'
 # ------------------Loading END ------------------------
 
 
@@ -116,9 +116,7 @@ def train_net(net,
 
                 # masks_probs_flat = masks_pred.view(-1)
                 # true_masks_flat = true_masks.view(-1)
-                loss = criterion(masks_pred, true_masks)+criterion_dice(out_new, true_masks)
-               
-                
+                loss = 0.5*criterion(masks_pred, true_masks) + 0.5*criterion_dice(out_new, true_masks)
                 epoch_loss += loss.item()
                 writer.add_scalar('Loss/', loss.item(), global_step)
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
@@ -173,13 +171,13 @@ def train_net(net,
     writer.close()
 
 def get_args():
-    parser = argparse.ArgumentParser(description='2D ELM layer segmentation from OCT images',
+    parser = argparse.ArgumentParser(description='2D ELM line segmentation from OCT images',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=40,
+    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=100,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=6,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0002,
                         help='Learning rate', dest='lr')
     parser.add_argument('-f', '--load', dest='load', type=str, default=False,
                         help='Load model from a .pth file')
