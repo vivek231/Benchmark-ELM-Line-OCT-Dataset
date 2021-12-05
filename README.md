@@ -30,5 +30,11 @@ Benchmarking Automated Detection Of The Retinal External Limiting Membrane In A 
 ## Citation:
 If you use the code in your work, please use the following citation:
 ```
-
+@article{singh2021benchmarking,
+  title={Benchmarking Automated Detection Of The Retinal External Limiting Membrane In A 3D Spectral Domain Optical Coherence Tomography Image Dataset of Full Thickness Macular Holes},
+  author={Singh, VK and Kucukgoz, B and Murphy, DC and Xiong, X and Steel, DH and Obara, B},
+  journal={Computers in Biology and Medicine},
+  year={2021},
+  publisher={Newcastle University}
+}
 ```
