@@ -25,7 +25,7 @@ Benchmarking Automated Detection Of The Retinal External Limiting Membrane In A 
 
 **+ Test the model:**
 
-    python test.py
+    python predict.py
 
 ## Citation:
 If you use the code in your work, please use the following citation:
